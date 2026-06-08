@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VALORANT DRAFT SIMULATOR</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="main-header">
+        <h1 id="logo-btn" class="logo">VALORANT <span>DRAFT SIMULATOR</span></h1>
+        <div id="header-match-info" class="header-match-info hidden">
+            <div class="team-vs">
+                <span class="t1-name">TEAM 1</span>
+                <span class="vs-badge">VS</span>
+                <span class="t2-name">TEAM 2</span>
+            </div>
+            <div class="current-map-display">MAP: <span id="active-map-name">-</span></div>
+        </div>
+    </header>
+
+    <main class="container">
+        
+        <section id="home-screen" class="screen active">
+            <div class="welcome-box">
+                <h2>SELECT DRAFT MODE</h2>
+                <p class="welcome-subtitle">Esports tournament-grade Valorant ban/pick draft simulator</p>
+                <div class="mode-options">
+                    <div class="mode-card" id="btn-start-draft">
+                        <h3>START DRAFT</h3>
+                        <p>Directly randomize the match map and proceed to the agent ban/pick phase with default names.</p>
+                    </div>
+                    <div class="mode-card" id="btn-random-team">
+                        <h3>RANDOM TEAM DRAFT</h3>
+                        <p>Enter 10 players to automatically shuffle and split them into two random teams before drafting.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="player-input-screen" class="screen">
+            <div class="input-panel">
+                <h2>10 PLAYERS REGISTRATION</h2>
+                <p class="subtitle">Enter the names of the players participating in the lobby</p>
+                <div class="player-grid-inputs">
+                    </div>
+                <button id="btn-generate-teams" class="v-btn primary-btn">SHUFFLE & GENERATE TEAMS</button>
+            </div>
+        </section>
+
+        <section id="draft-screen" class="screen">
+            <div class="draft-layout">
+                
+                <aside class="team-panel team-1" id="team1-panel">
+                    <h2 class="team-title" id="t1-display-name">TEAM 1</h2>
+                    <div class="player-slots" id="t1-slots">
+                        </div>
+                    <div class="ban-box">
+                        <h3>TEAM 1 BANS</h3>
+                        <div class="ban-slots" id="t1-bans"></div>
+                    </div>
+                </aside>
+
+                <section class="draft-center">
+                    <div class="status-bar" id="status-message">INITIALIZING...</div>
+                    
+                    <div id="map-rolling-section" class="center-card hidden">
+                        <h3>SYSTEM SELECTING MAP</h3>
+                        <div class="map-roller" id="map-roller-box">?</div>
+                        <button id="btn-confirm-map" class="v-btn action-btn">CONFIRM MAP</button>
+                    </div>
+
+                    <div id="side-rolling-section" class="center-card hidden">
+                        <h3>DETERMINING STARTING SIDES</h3>
+                        <div class="map-roller" id="side-roller-box">?</div>
+                        <button id="btn-confirm-side" class="v-btn action-btn hidden">START BAN / PICK</button>
+                    </div>
+
+                    <div id="pick-control-section" class="center-card hidden">
+                        <p class="instruction">Select a role preference before rolling for an agent:</p>
+                        <div class="role-selector" id="role-buttons-container">
+                            <button class="role-btn active" data-role="All">ANY ROLE</button>
+                            <button class="role-btn" data-role="Duelist">DUELIST</button>
+                            <button class="role-btn" data-role="Initiator">INITIATOR</button>
+                            <button class="role-btn" data-role="Controller">CONTROLLER</button>
+                            <button class="role-btn" data-role="Sentinels">SENTINEL</button>
+                        </div>
+                        
+                        <div class="roll-zone">
+                            <div class="agent-rolling-display" id="agent-roller-box">?</div>
+                            <button id="btn-trigger-roll" class="v-btn action-btn">START AGENT ROLL</button>
+                        </div>
+                    </div>
+
+                    <div class="agent-pool-container">
+                        <h4 id="pool-title">AGENT POOL</h4>
+                        <div class="agent-grid" id="main-agent-grid"></div>
+                    </div>
+                </section>
+
+                <aside class="team-panel team-2" id="team2-panel">
+                    <h2 class="team-title" id="t2-display-name">TEAM 2</h2>
+                    <div class="player-slots" id="t2-slots">
+                        </div>
+                    <div class="ban-box">
+                        <h3>TEAM 2 BANS</h3>
+                        <div class="ban-slots" id="t2-bans"></div>
+                    </div>
+                </aside>
+
+            </div>
+        </section>
+
+        <section id="result-screen" class="screen">
+            <div class="result-box">
+                <div class="result-header">
+                    <h2>DRAFT COMPLETE</h2>
+                    <p>The match setup is ready! Copy the results below.</p>
+                </div>
+                
+                <div class="result-summary">
+                    <div class="summary-map">
+                        <span>MATCH MAP</span>
+                        <h3 id="res-map-name">-</h3>
+                    </div>
+
+                    <div class="summary-teams">
+                        <div class="team-res-card t1-res">
+                            <h4 id="res-t1-title">TEAM 1</h4>
+                            <ul id="res-t1-picks"></ul>
+                            <div class="res-bans">Bans: <span id="res-t1-bans"></span></div>
+                        </div>
+                        <div class="team-res-card t2-res">
+                            <h4 id="res-t2-title">TEAM 2</h4>
+                            <ul id="res-t2-picks"></ul>
+                            <div class="res-bans">Bans: <span id="res-t2-bans"></span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-actions">
+                    <button id="btn-copy-result" class="v-btn action-btn">COPY DRAFT RESULT</button>
+                    <button id="btn-reset-draft" class="v-btn secondary-btn">RESET DRAFT</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="global-footer">
+        <p>© 2026 VALORANT DRAFT SIMULATOR - PRO TOURNAMENT SIMULATION.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
