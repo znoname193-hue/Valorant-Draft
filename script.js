@@ -1,485 +1,771 @@
-// --- CONSTANTS DATA ---
-const MAP_POOL = [
-    "CORRODE", "Haven", "Icebox", "Split", "Pearl", "Bind", 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+const ALL_MAPS = [
+    "Corrode", "Haven", "Icebox", "Split", "Pearl", "Bind", 
     "Fracture", "Breeze", "Abyss", "Sunset", "Lotus", "Ascent"
 ];
 
-const AGENT_ROLES = {
-    Duelist: ["Jett", "Raze", "Reyna", "Phoenix", "Yoru", "Neon", "Iso", "Waylay"],
-    Initiator: ["Sova", "Fade", "Skye", "Gekko", "Breach", "KAY/O", "Tejo"],
-    Controller: ["Astra", "Brimstone", "Clove", "Harbor", "Miks", "Omen", "Viper"],
-    Sentinels: ["Chamber", "Cypher", "Deadlock", "Killjoy", "Sage", "Veto", "Vyse"]
-};
-
-let ALL_AGENTS = [];
-for (let role in AGENT_ROLES) {
-    ALL_AGENTS = ALL_AGENTS.concat(AGENT_ROLES[role]);
-}
-
-// --- STATE MANAGEMENT ---
-let appState = {
-    mode: "start", 
-    players: {
-        team1: ["Player 1", "Player 2", "Player 3", "Player 4", "Player 5"],
-        team2: ["Player 6", "Player 7", "Player 8", "Player 9", "Player 10"]
-    },
-    selectedMap: "",
-    sides: { team1: "", team2: "" }, // Quản lý phe (ATK/DEF) của 2 team
-    bannedAgents: { team1: [], team2: [] },
-    pickedAgents: {
-        team1: [null, null, null, null, null],
-        team2: [null, null, null, null, null]
-    },
-    currentTurnIndex: 0,
-    selectedRoleFilter: "All", 
-    isRolling: false
-};
-
-// --- CHUỖI BAN/PICK THEO LUẬT TOURNAMENT ĐÃ SỬA ĐỔI ---
-const DRAFT_SEQUENCE = [
-    // Giai đoạn 1: Ban 4 Agent đầu tiên
-    { type: "ban", team: 1, index: 0, label: "TEAM 1 BAN - ROUND 1" },
-    { type: "ban", team: 2, index: 0, label: "TEAM 2 BAN - ROUND 1" },
-    { type: "ban", team: 1, index: 1, label: "TEAM 1 BAN - ROUND 2" },
-    { type: "ban", team: 2, index: 1, label: "TEAM 2 BAN - ROUND 2" },
-    
-    // Giai đoạn 2: Lượt Pick đầu tiên
-    { type: "pick", team: 1, slot: 0, label: "TEAM 1 PICK - PLAYER 1" },
-    
-    { type: "pick", team: 2, slot: 0, label: "TEAM 2 PICK - PLAYER 1" },
-    { type: "pick", team: 2, slot: 1, label: "TEAM 2 PICK - PLAYER 2" }, // Team 2 roll liền 2 Chợ
-    
-    { type: "pick", team: 1, slot: 1, label: "TEAM 1 PICK - PLAYER 2" },
-    { type: "pick", team: 1, slot: 2, label: "TEAM 1 PICK - PLAYER 3" }, // Team 1 roll liền 2 Chợ
-    
-    { type: "pick", team: 2, slot: 2, label: "TEAM 2 PICK - PLAYER 3" },
-    
-    // Giai đoạn 3: Lượt Ban cuối cùng
-    { type: "ban", team: 1, index: 2, label: "TEAM 1 BAN - FINAL ROUND" },
-    { type: "ban", team: 2, index: 2, label: "TEAM 2 BAN - FINAL ROUND" },
-    
-    // Giai đoạn 4: Hoàn thành các lượt Pick còn lại
-    { type: "pick", team: 2, slot: 3, label: "TEAM 2 PICK - PLAYER 4" },
-    
-    { type: "pick", team: 1, slot: 3, label: "TEAM 1 PICK - PLAYER 4" },
-    { type: "pick", team: 1, slot: 4, label: "TEAM 1 PICK - PLAYER 5" }, // Team 1 roll liền 2 Chợ cuối
-    
-    { type: "pick", team: 2, slot: 4, label: "TEAM 2 PICK - PLAYER 5" }
+const AGENT_POOL = [
+    // Duelist
+    { name: "Jett", role: "Duelist" }, { name: "Raze", role: "Duelist" }, { name: "Reyna", role: "Duelist" },
+    { name: "Phoenix", role: "Duelist" }, { name: "Yoru", role: "Duelist" }, { name: "Neon", role: "Duelist" },
+    { name: "Iso", role: "Duelist" }, { name: "Waylay", role: "Duelist" },
+    // Initiator
+    { name: "Sova", role: "Initiator" }, { name: "Fade", role: "Initiator" }, { name: "Skye", role: "Initiator" },
+    { name: "Gekko", role: "Initiator" }, { name: "Breach", role: "Initiator" }, { name: "KAY/O", role: "Initiator" },
+    { name: "Tejo", role: "Initiator" },
+    // Controller
+    { name: "Astra", role: "Controller" }, { name: "Brimstone", role: "Controller" }, { name: "Clove", role: "Controller" },
+    { name: "Harbor", role: "Controller" }, { name: "Miks", role: "Controller" }, { name: "Omen", role: "Controller" },
+    { name: "Viper", role: "Controller" },
+    // Sentinel
+    { name: "Chamber", role: "Sentinel" }, { name: "Cypher", role: "Sentinel" }, { name: "Deadlock", role: "Sentinel" },
+    { name: "Killjoy", role: "Sentinel" }, { name: "Sage", role: "Sentinel" }, { name: "Veto", role: "Sentinel" },
+    { name: "Vyse", role: "Sentinel" }
 ];
 
-// --- INITIALIZATION ---
-document.addEventListener("DOMContentLoaded", () => {
-    initDOMEvents();
-    renderPlayerInputFields();
-});
+const NORMAL_TURN_SEQUENCE = [
+    { phase: "Ban Phase 1", type: "ban", team: 1 }, { phase: "Ban Phase 1", type: "ban", team: 2 },
+    { phase: "Ban Phase 1", type: "ban", team: 1 }, { phase: "Ban Phase 1", type: "ban", team: 2 },
+    { phase: "Pick Phase 1", type: "pick", team: 1 }, { phase: "Pick Phase 1", type: "pick", team: 2 },
+    { phase: "Pick Phase 1", type: "pick", team: 2 }, { phase: "Pick Phase 1", type: "pick", team: 1 },
+    { phase: "Pick Phase 1", type: "pick", team: 1 }, { phase: "Pick Phase 1", type: "pick", team: 2 },
+    { phase: "Ban Phase 2", type: "ban", team: 2 }, { phase: "Ban Phase 2", type: "ban", team: 1 },
+    { phase: "Pick Phase 2", type: "pick", team: 2 }, { phase: "Pick Phase 2", type: "pick", team: 1 },
+    { phase: "Pick Phase 2", type: "pick", team: 1 }, { phase: "Pick Phase 2", type: "pick", team: 2 }
+];
 
-function initDOMEvents() {
-    document.getElementById("logo-btn").addEventListener("click", resetToHome);
-    document.getElementById("btn-start-draft").addEventListener("click", () => startDraftFlow("start"));
-    document.getElementById("btn-random-team").addEventListener("click", () => switchScreen("player-input-screen"));
-    document.getElementById("btn-generate-teams").addEventListener("click", processRandomTeamGeneration);
-    
-    // Định tuyến chuỗi: Xác nhận Map xong chuyển sang Roll Phe (Sides)
-    document.getElementById("btn-confirm-map").addEventListener("click", executeSideSelectionRoutine);
-    document.getElementById("btn-confirm-side").addEventListener("click", proceedToBanPickPhase);
-    
-    document.getElementById("btn-trigger-roll").addEventListener("click", executeAgentRollRoutine);
+// Map draft rules for Pro Mode. "W" = Coin toss winner (Team 1), "L" = Loser (Team 2)
+const PRO_MAP_SEQUENCES = {
+    'BO1': [
+        { action: 'ban', team: 1 }, { action: 'ban', team: 2 }, { action: 'ban', team: 1 },
+        { action: 'ban', team: 2 }, { action: 'ban', team: 1 }, { action: 'ban', team: 2 },
+        { action: 'decider', team: 'auto' }
+    ],
+    'BO3': [
+        { action: 'ban', team: 1 }, { action: 'ban', team: 2 },
+        { action: 'pick', team: 1 }, { action: 'side', team: 2 },
+        { action: 'pick', team: 2 }, { action: 'side', team: 1 },
+        { action: 'ban', team: 1 }, { action: 'ban', team: 2 },
+        { action: 'decider', team: 'auto' }, { action: 'side', team: 1 }
+    ],
+    'BO5': [
+        { action: 'ban', team: 1 }, { action: 'ban', team: 2 },
+        { action: 'pick', team: 1 }, { action: 'side', team: 2 },
+        { action: 'pick', team: 2 }, { action: 'side', team: 1 },
+        { action: 'pick', team: 1 }, { action: 'side', team: 2 },
+        { action: 'pick', team: 2 }, { action: 'side', team: 1 },
+        { action: 'decider', team: 'auto' }, { action: 'side', team: 'random' }
+    ]
+};
 
-    document.querySelectorAll(".role-btn").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-            if (appState.isRolling) return;
-            document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
-            e.target.classList.add("active");
-            appState.selectedRoleFilter = e.target.getAttribute("data-role");
-            renderAgentGrid();
-        });
-    });
+// ============================================================================
+// APP STATE
+// ============================================================================
+let appState = getInitialState();
+let timerInterval = null;
 
-    document.getElementById("btn-copy-result").addEventListener("click", copyDraftDataToClipboard);
-    document.getElementById("btn-reset-draft").addEventListener("click", resetToHome);
-}
-
-function switchScreen(screenId) {
-    document.querySelectorAll(".screen").forEach(scr => scr.classList.remove("active"));
-    document.getElementById(screenId).classList.add("active");
-}
-
-function renderPlayerInputFields() {
-    const container = document.querySelector(".player-grid-inputs");
-    container.innerHTML = "";
-    for (let i = 1; i <= 10; i++) {
-        container.innerHTML += `
-            <div class="input-group">
-                <label>P${i}</label>
-                <input type="text" id="p-input-${i}" value="PLAYER ${i}">
-            </div>
-        `;
-    }
-}
-
-function processRandomTeamGeneration() {
-    let rawNames = [];
-    for (let i = 1; i <= 10; i++) {
-        let val = document.getElementById(`p-input-${i}`).value.trim();
-        rawNames.push(val === "" ? `PLAYER ${i}` : val.toUpperCase());
-    }
-    
-    for (let i = rawNames.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [rawNames[i], rawNames[j]] = [rawNames[j], rawNames[i]];
-    }
-
-    appState.players.team1 = rawNames.slice(0, 5);
-    appState.players.team2 = rawNames.slice(5, 10);
-    
-    startDraftFlow("random-team");
-}
-
-function startDraftFlow(mode) {
-    appState.mode = mode;
-    if (mode === "start") {
-        appState.players.team1 = ["PLAYER 1", "PLAYER 2", "PLAYER 3", "PLAYER 4", "PLAYER 5"];
-        appState.players.team2 = ["PLAYER 6", "PLAYER 7", "PLAYER 8", "PLAYER 9", "PLAYER 10"];
-    }
-
-    document.getElementById("header-match-info").classList.remove("hidden");
-    switchScreen("draft-screen");
-
-    refreshDraftPanelsUI();
-    executeMapSelectionRoutine();
-}
-
-function executeMapSelectionRoutine() {
-    document.getElementById("status-message").innerText = "SELECTING MATCH MAP...";
-    const mapSection = document.getElementById("map-rolling-section");
-    const sideSection = document.getElementById("side-rolling-section");
-    const pickSection = document.getElementById("pick-control-section");
-    const rollerBox = document.getElementById("map-roller-box");
-    const confirmBtn = document.getElementById("btn-confirm-map");
-
-    mapSection.classList.remove("hidden");
-    sideSection.classList.add("hidden");
-    pickSection.classList.add("hidden");
-    confirmBtn.classList.add("hidden");
-
-    let counter = 0;
-    let interval = setInterval(() => {
-        let randMap = MAP_POOL[Math.floor(Math.random() * MAP_POOL.length)];
-        rollerBox.innerText = randMap;
-        counter++;
-        if (counter > 15) {
-            clearInterval(interval);
-            appState.selectedMap = MAP_POOL[Math.floor(Math.random() * MAP_POOL.length)];
-            rollerBox.innerText = appState.selectedMap;
-            document.getElementById("active-map-name").innerText = appState.selectedMap.toUpperCase();
-            confirmBtn.classList.remove("hidden");
-            document.getElementById("status-message").innerText = `MAP SELECTED: ${appState.selectedMap.toUpperCase()}`;
-        }
-    }, 100);
-}
-
-// ROUTINE LÀM MỚI: ROLL PHE (ATK/DEF) CHO HAI TEAM
-function executeSideSelectionRoutine() {
-    document.getElementById("map-rolling-section").classList.add("hidden");
-    document.getElementById("status-message").innerText = "DETERMINING TEAM SIDES...";
-
-    const sideSection = document.getElementById("side-rolling-section");
-    const rollerBox = document.getElementById("side-roller-box");
-    const confirmBtn = document.getElementById("btn-confirm-side");
-
-    sideSection.classList.remove("hidden");
-    confirmBtn.classList.add("hidden");
-
-    const options = [
-        { t1: "ATK", t2: "DEF", text: "T1: ATK ⚔️ DEF :T2" },
-        { t1: "DEF", t2: "ATK", text: "T1: DEF 🛡️ ATK :T2" }
-    ];
-
-    let counter = 0;
-    let interval = setInterval(() => {
-        let randOpt = options[Math.floor(Math.random() * options.length)];
-        rollerBox.innerText = randOpt.text;
-        counter++;
-        
-        if (counter > 12) {
-            clearInterval(interval);
-            let finalOpt = options[Math.floor(Math.random() * options.length)];
-            appState.sides.team1 = finalOpt.t1;
-            appState.sides.team2 = finalOpt.t2;
-            
-            // Render kết quả có màu sắc trực quan
-            rollerBox.innerHTML = `
-                <span style="color: var(--v-red)">${finalOpt.t1}</span> 
-                <span style="font-size: 24px; color: var(--v-gray)">VS</span> 
-                <span style="color: var(--v-teal)">${finalOpt.t2}</span>
-            `;
-            
-            confirmBtn.classList.remove("hidden");
-            document.getElementById("status-message").innerText = `SIDES SET | TEAM 1: ${finalOpt.t1} • TEAM 2: ${finalOpt.t2}`;
-            
-            // Cập nhật nhãn bên cạnh tiêu đề Panel hai bên để dễ nhìn nhận
-            document.getElementById("t1-display-name").innerText = `TEAM 1 (${finalOpt.t1})`;
-            document.getElementById("t2-display-name").innerText = `TEAM 2 (${finalOpt.t2})`;
-        }
-    }, 100);
-}
-
-function proceedToBanPickPhase() {
-    document.getElementById("side-rolling-section").classList.add("hidden");
-    document.getElementById("pick-control-section").classList.remove("hidden");
-    appState.currentTurnIndex = 0;
-    processCurrentTurnStep();
-}
-
-function processCurrentTurnStep() {
-    if (appState.currentTurnIndex >= DRAFT_SEQUENCE.length) {
-        finishDraftAndShowResults();
-        return;
-    }
-
-    const currentStep = DRAFT_SEQUENCE[appState.currentTurnIndex];
-    document.getElementById("status-message").innerText = currentStep.label;
-
-    const t1Panel = document.getElementById("team1-panel");
-    const t2Panel = document.getElementById("team2-panel");
-    t1Panel.classList.remove("active-turn");
-    t2Panel.classList.remove("active-turn");
-
-    if (currentStep.team === 1) t1Panel.classList.add("active-turn");
-    else t2Panel.classList.add("active-turn");
-
-    const rollZone = document.querySelector(".roll-zone");
-    const roleSelector = document.getElementById("role-buttons-container");
-    const instructionText = document.querySelector(".instruction");
-    const poolTitle = document.getElementById("pool-title");
-
-    if (currentStep.type === "ban") {
-        rollZone.classList.add("hidden");
-        roleSelector.classList.add("hidden");
-        instructionText.innerText = "CLICK AN AGENT IN THE POOL BELOW TO BAN THEM";
-        poolTitle.innerText = "CLICK TO BAN AGENT";
-    } else {
-        rollZone.classList.remove("hidden");
-        roleSelector.classList.remove("hidden");
-        instructionText.innerText = "Select a role preference before rolling for an agent:";
-        poolTitle.innerText = "ELIGIBLE AGENT POOL";
-        document.getElementById("agent-roller-box").innerText = "?";
-    }
-
-    renderAgentGrid();
-    refreshDraftPanelsUI();
-}
-
-function renderAgentGrid() {
-    const grid = document.getElementById("main-agent-grid");
-    grid.innerHTML = "";
-
-    const currentStep = DRAFT_SEQUENCE[appState.currentTurnIndex];
-    if (!currentStep) return;
-
-    let targetPool = [];
-    if (currentStep.type === "pick" && appState.selectedRoleFilter !== "All") {
-        targetPool = AGENT_ROLES[appState.selectedRoleFilter];
-    } else {
-        targetPool = ALL_AGENTS;
-    }
-
-    targetPool.forEach(agent => {
-        const isBanned = appState.bannedAgents.team1.includes(agent) || appState.bannedAgents.team2.includes(agent);
-        const isPicked = appState.pickedAgents.team1.includes(agent) || appState.pickedAgents.team2.includes(agent);
-        
-        const card = document.createElement("div");
-        card.className = "agent-card";
-        card.innerText = agent;
-
-        if (isBanned || isPicked) {
-            card.classList.add("disabled");
-        } else if (currentStep.type === "ban") {
-            card.classList.add("clickable-ban");
-            card.addEventListener("click", () => handleBanAction(agent));
-        }
-
-        grid.appendChild(card);
-    });
-}
-
-function handleBanAction(agentName) {
-    const currentStep = DRAFT_SEQUENCE[appState.currentTurnIndex];
-    if (!currentStep || currentStep.type !== "ban") return;
-
-    if (currentStep.team === 1) {
-        appState.bannedAgents.team1.push(agentName);
-    } else {
-        appState.bannedAgents.team2.push(agentName);
-    }
-
-    appState.currentTurnIndex++;
-    processCurrentTurnStep();
-}
-
-function executeAgentRollRoutine() {
-    if (appState.isRolling) return;
-
-    const currentStep = DRAFT_SEQUENCE[appState.currentTurnIndex];
-    if (!currentStep || currentStep.type !== "pick") return;
-
-    let validPool = [];
-    if (appState.selectedRoleFilter === "All") {
-        validPool = ALL_AGENTS;
-    } else {
-        validPool = AGENT_ROLES[appState.selectedRoleFilter];
-    }
-
-    validPool = validPool.filter(agent => {
-        return !appState.bannedAgents.team1.includes(agent) &&
-               !appState.bannedAgents.team2.includes(agent) &&
-               !appState.pickedAgents.team1.includes(agent) &&
-               !appState.pickedAgents.team2.includes(agent);
-    });
-
-    if (validPool.length === 0) {
-        alert("No available agents left in this role! Please choose another role or select ANY ROLE.");
-        return;
-    }
-
-    appState.isRolling = true;
-    const rollerBox = document.getElementById("agent-roller-box");
-    rollerBox.classList.add("rolling");
-
-    let counter = 0;
-    let rollInterval = setInterval(() => {
-        let tempAgent = validPool[Math.floor(Math.random() * validPool.length)];
-        rollerBox.innerText = tempAgent;
-        counter++;
-
-        if (counter > 18) {
-            clearInterval(rollInterval);
-            rollerBox.classList.remove("rolling");
-            
-            const finalAgent = validPool[Math.floor(Math.random() * validPool.length)];
-            rollerBox.innerText = finalAgent;
-
-            if (currentStep.team === 1) {
-                appState.pickedAgents.team1[currentStep.slot] = finalAgent;
-            } else {
-                appState.pickedAgents.team2[currentStep.slot] = finalAgent;
-            }
-
-            appState.isRolling = false;
-            appState.currentTurnIndex++;
-            
-            setTimeout(processCurrentTurnStep, 800);
-        }
-    }, 70);
-}
-
-function refreshDraftPanelsUI() {
-    updateTeamPanelDOM("1", appState.players.team1, appState.pickedAgents.team1, appState.bannedAgents.team1);
-    updateTeamPanelDOM("2", appState.players.team2, appState.pickedAgents.team2, appState.bannedAgents.team2);
-}
-
-function updateTeamPanelDOM(teamNum, playersArr, picksArr, bansArr) {
-    const slotsContainer = document.getElementById(`t${teamNum}-slots`);
-    slotsContainer.innerHTML = "";
-
-    for (let i = 0; i < 5; i++) {
-        const pName = playersArr[i] || `PLAYER ${i+1}`;
-        const agentName = picksArr[i];
-        
-        const isPicked = agentName !== null;
-        const displayAgent = isPicked ? agentName : "WAITING...";
-        const classPicked = isPicked ? "picked" : "";
-
-        slotsContainer.innerHTML += `
-            <div class="p-slot ${classPicked}">
-                <div class="slot-info">
-                    <span class="slot-pname">${pName}</span>
-                    <span class="slot-aname">${displayAgent}</span>
-                </div>
-                <div class="slot-avatar-placeholder">${isPicked ? agentName.substring(0,3) : "?"}</div>
-            </div>
-        `;
-    }
-
-    const bansContainer = document.getElementById(`t${teamNum}-bans`);
-    bansContainer.innerHTML = "";
-    for (let i = 0; i < 3; i++) {
-        const bannedAgent = bansArr[i];
-        if (bannedAgent) {
-            bansContainer.innerHTML += `<div class="b-slot banned">${bannedAgent.substring(0,3)}</div>`;
-        } else {
-            bansContainer.innerHTML += `<div class="b-slot">-</div>`;
-        }
-    }
-}
-
-function finishDraftAndShowResults() {
-    switchScreen("result-screen");
-    document.getElementById("header-match-info").classList.add("hidden");
-
-    document.getElementById("res-map-name").innerText = appState.selectedMap.toUpperCase();
-
-    // Kết xuất phe ATK/DEF lên màn hình tổng kết
-    document.getElementById("res-t1-title").innerText = `TEAM 1 (${appState.sides.team1})`;
-    document.getElementById("res-t2-title").innerText = `TEAM 2 (${appState.sides.team2})`;
-
-    const t1List = document.getElementById("res-t1-picks");
-    t1List.innerHTML = "";
-    appState.pickedAgents.team1.forEach((agent, i) => {
-        t1List.innerHTML += `<li><span>${appState.players.team1[i]}</span> <strong>${agent}</strong></li>`;
-    });
-
-    const t2List = document.getElementById("res-t2-picks");
-    t2List.innerHTML = "";
-    appState.pickedAgents.team2.forEach((agent, i) => {
-        t2List.innerHTML += `<li><span>${appState.players.team2[i]}</span> <strong>${agent}</strong></li>`;
-    });
-
-    document.getElementById("res-t1-bans").innerText = appState.bannedAgents.team1.join(", ") || "None";
-    document.getElementById("res-t2-bans").innerText = appState.bannedAgents.team2.join(", ") || "None";
-}
-
-function copyDraftDataToClipboard() {
-    let text = `VALORANT DRAFT RESULT\n\n`;
-    text += `MAP: ${appState.selectedMap}\n`;
-    text += `TEAM 1 SIDE: ${appState.sides.team1} | TEAM 2 SIDE: ${appState.sides.team2}\n\n`;
-    
-    text += `TEAM 1 (Picks):\n`;
-    appState.pickedAgents.team1.forEach((agent, i) => text += `- ${appState.players.team1[i]}: ${agent}\n`);
-    
-    text += `\nTEAM 2 (Picks):\n`;
-    appState.pickedAgents.team2.forEach((agent, i) => text += `- ${appState.players.team2[i]}: ${agent}\n`);
-    
-    text += `\nTEAM 1 BANS: ${appState.bannedAgents.team1.join(", ") || "None"}\n`;
-    text += `TEAM 2 BANS: ${appState.bannedAgents.team2.join(", ") || "None"}\n`;
-
-    navigator.clipboard.writeText(text).then(() => {
-        alert("Draft results successfully copied to clipboard!");
-    }).catch(err => {
-        console.error("Failed to copy text: ", err);
-    });
-}
-
-function resetToHome() {
-    if (appState.isRolling) return;
-
-    appState.selectedMap = "";
-    appState.sides = { team1: "", team2: "" };
-    appState.bannedAgents = { team1: [], team2: [] };
-    appState.pickedAgents = {
-        team1: [null, null, null, null, null],
-        team2: [null, null, null, null, null]
+function getInitialState() {
+    return {
+        mode: 'home', // home, start, random, pro
+        timer: 50,
+        normal: {
+            team1Name: "Team 1", team2Name: "Team 2",
+            roster1: [], roster2: [],
+            map: "",
+            turnIndex: 0,
+            bans: [], picks: [],
+            selectedRole: "Any"
+        },
+        pro: {
+            team1Name: "", team2Name: "",
+            format: "BO1",
+            pool: [], // 7 selected maps
+            coinWinner: 1,
+            mapDraftStep: 0,
+            mapDraftLog: [], // track bans/picks
+            finalMaps: [], // { name, atkTeam, defTeam, bans: [], picks: [], turnIndex: 0 }
+            activeMapIndex: 0,
+            searchQuery: "", roleFilter: "All"
+        },
+        proUndoStack: []
     };
-    appState.currentTurnIndex = 0;
-    appState.selectedRoleFilter = "All";
+}
 
-    document.getElementById("t1-display-name").innerText = "TEAM 1";
-    document.getElementById("t2-display-name").innerText = "TEAM 2";
+// ============================================================================
+// NAVIGATION & RESET
+// ============================================================================
+function resetApp() {
+    stopTimer();
+    appState = getInitialState();
+    switchView('home');
+}
 
-    document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
-    document.querySelector("[data-role='All']").classList.add("active");
+function switchView(viewId) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(`view-${viewId}`).classList.add('active');
+    document.getElementById('app-main').className = ''; // remove active team styles
+}
 
-    document.getElementById("header-match-info").classList.add("hidden");
-    document.getElementById("side-rolling-section").classList.add("hidden");
-    switchScreen("home-screen");
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// ============================================================================
+// MODE SETUP
+// ============================================================================
+function startSetup(mode) {
+    appState.mode = mode;
+    if (mode === 'start') {
+        doMapRollAnimation();
+    } else if (mode === 'random') {
+        renderRandomSetup();
+        switchView('random-setup');
+    } else if (mode === 'pro') {
+        renderProSetup();
+        switchView('pro-setup');
+    }
+}
+
+// ============================================================================
+// NORMAL & RANDOM DRAFT ENGINE
+// ============================================================================
+function renderRandomSetup() {
+    const container = document.getElementById('player-inputs-container');
+    container.innerHTML = '';
+    for (let i = 1; i <= 10; i++) {
+        container.innerHTML += `<input type="text" id="p${i}" placeholder="Player ${i}">`;
+    }
+}
+
+function shuffleRandomTeams() {
+    let players = [];
+    for (let i = 1; i <= 10; i++) {
+        let val = document.getElementById(`p${i}`).value.trim();
+        players.push(val || `Player ${i}`);
+    }
+    // Shuffle array
+    for (let i = players.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [players[i], players[j]] = [players[j], players[i]];
+    }
+    appState.normal.roster1 = players.slice(0, 5);
+    appState.normal.roster2 = players.slice(5, 10);
+    doMapRollAnimation();
+}
+
+function doMapRollAnimation() {
+    switchView('animation');
+    const display = document.getElementById('anim-display');
+    document.getElementById('anim-title').innerText = "ROLLING MAP...";
+    
+    let rollCount = 0;
+    let intervalTime = 100;
+    
+    const roll = () => {
+        display.innerText = ALL_MAPS[Math.floor(Math.random() * ALL_MAPS.length)];
+        rollCount++;
+        
+        if (rollCount < 20) {
+            setTimeout(roll, intervalTime);
+        } else if (rollCount < 30) {
+            intervalTime += 30;
+            setTimeout(roll, intervalTime);
+        } else {
+            // Final Map
+            const finalMap = ALL_MAPS[Math.floor(Math.random() * ALL_MAPS.length)];
+            display.innerText = finalMap;
+            display.classList.add('anim-pulse');
+            appState.normal.map = finalMap;
+            
+            setTimeout(() => {
+                display.classList.remove('anim-pulse');
+                startNormalDraft();
+            }, 2000);
+        }
+    };
+    roll();
+}
+
+function startNormalDraft() {
+    appState.normal.turnIndex = 0;
+    appState.normal.bans = [];
+    appState.normal.picks = [];
+    switchView('draft');
+    updateNormalDraftUI();
+}
+
+function updateNormalDraftUI() {
+    const state = appState.normal;
+    const isFinished = state.turnIndex >= NORMAL_TURN_SEQUENCE.length;
+    
+    // Set Header/Rosters
+    document.getElementById('name-t1').innerText = state.team1Name;
+    document.getElementById('name-t2').innerText = state.team2Name;
+    document.getElementById('draft-map-name').innerText = state.map;
+    document.getElementById('roster-t1').innerHTML = state.roster1.join('<br>');
+    document.getElementById('roster-t2').innerHTML = state.roster2.join('<br>');
+
+    const mainApp = document.getElementById('app-main');
+    document.getElementById('role-selector').classList.add('hidden');
+    document.getElementById('agent-search-bar').classList.add('hidden');
+    document.getElementById('final-actions').classList.add('hidden');
+    document.getElementById('pro-map-tabs').classList.add('hidden');
+    document.getElementById('pro-toolbar').classList.add('hidden');
+    
+    if (isFinished) {
+        stopTimer();
+        document.getElementById('draft-phase').innerText = "DRAFT COMPLETE";
+        document.getElementById('draft-action').innerText = "Result";
+        document.getElementById('draft-timer').innerText = "";
+        mainApp.className = ""; // Remove active glows
+        document.getElementById('final-actions').classList.remove('hidden');
+    } else {
+        const turn = NORMAL_TURN_SEQUENCE[state.turnIndex];
+        document.getElementById('draft-phase').innerText = turn.phase;
+        document.getElementById('draft-action').innerText = turn.team === 1 ? `${state.team1Name} ${turn.type.toUpperCase()}` : `${state.team2Name} ${turn.type.toUpperCase()}`;
+        mainApp.className = `app-active-t${turn.team}`;
+        
+        if (turn.type === 'pick') {
+            document.getElementById('role-selector').classList.remove('hidden');
+        }
+        startTimer();
+    }
+
+    renderAgentGridNormal();
+    renderSidePanelsNormal();
+}
+
+function renderAgentGridNormal() {
+    const grid = document.getElementById('agent-grid');
+    grid.innerHTML = '';
+    
+    AGENT_POOL.forEach(agent => {
+        const div = document.createElement('div');
+        div.className = 'agent-card';
+        div.innerHTML = `<div class="name">${agent.name}</div><div class="role">${agent.role}</div>`;
+        
+        const isBanned = appState.normal.bans.some(b => b.agent === agent.name);
+        const isPicked = appState.normal.picks.some(p => p.agent === agent.name);
+        
+        if (isBanned) div.classList.add('banned');
+        if (isPicked) div.classList.add('picked');
+        
+        if (!isBanned && !isPicked && appState.normal.turnIndex < NORMAL_TURN_SEQUENCE.length) {
+            const turn = NORMAL_TURN_SEQUENCE[appState.normal.turnIndex];
+            if (turn.type === 'ban') {
+                div.onclick = () => openModal(agent.name, 'ban', () => executeNormalBan(agent.name));
+            }
+        }
+        grid.appendChild(div);
+    });
+}
+
+function renderSidePanelsNormal() {
+    const s = appState.normal;
+    // T1 Picks & Bans
+    let t1PicksHTML = '', t1BansHTML = '';
+    let t2PicksHTML = '', t2BansHTML = '';
+    
+    for(let i=0; i<5; i++) {
+        const p1 = s.picks.filter(p => p.team === 1)[i];
+        const p2 = s.picks.filter(p => p.team === 2)[i];
+        t1PicksHTML += `<div class="pick-slot">${p1 ? p1.agent : ''}</div>`;
+        t2PicksHTML += `<div class="pick-slot">${p2 ? p2.agent : ''}</div>`;
+    }
+    
+    s.bans.filter(b=>b.team===1).forEach(b => t1BansHTML += `<div class="ban-slot">${b.agent}</div>`);
+    s.bans.filter(b=>b.team===2).forEach(b => t2BansHTML += `<div class="ban-slot">${b.agent}</div>`);
+    
+    document.getElementById('picks-t1').innerHTML = t1PicksHTML;
+    document.getElementById('picks-t2').innerHTML = t2PicksHTML;
+    document.getElementById('bans-t1').innerHTML = t1BansHTML;
+    document.getElementById('bans-t2').innerHTML = t2BansHTML;
+}
+
+function executeNormalBan(agentName) {
+    closeModal();
+    const turn = NORMAL_TURN_SEQUENCE[appState.normal.turnIndex];
+    appState.normal.bans.push({ team: turn.team, agent: agentName });
+    appState.normal.turnIndex++;
+    updateNormalDraftUI();
+}
+
+function selectRole(role) {
+    appState.normal.selectedRole = role;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+}
+
+function startRandomRoll() {
+    const role = appState.normal.selectedRole;
+    let available = AGENT_POOL.filter(a => 
+        !appState.normal.bans.some(b => b.agent === a.name) &&
+        !appState.normal.picks.some(p => p.agent === a.name)
+    );
+    if (role !== 'Any') {
+        available = available.filter(a => a.role === role);
+    }
+    
+    if (available.length === 0) {
+        showToast(`No available agents in ${role}!`);
+        return;
+    }
+
+    switchView('animation');
+    const display = document.getElementById('anim-display');
+    document.getElementById('anim-title').innerText = "ROLLING AGENT...";
+    
+    let rollCount = 0;
+    let intervalTime = 80;
+    
+    const roll = () => {
+        display.innerText = available[Math.floor(Math.random() * available.length)].name;
+        rollCount++;
+        
+        if (rollCount < 20) {
+            setTimeout(roll, intervalTime);
+        } else if (rollCount < 30) {
+            intervalTime += 50;
+            setTimeout(roll, intervalTime);
+        } else {
+            const finalAgent = available[Math.floor(Math.random() * available.length)].name;
+            display.innerText = finalAgent;
+            display.classList.add('anim-pulse');
+            
+            setTimeout(() => {
+                display.classList.remove('anim-pulse');
+                executeNormalPick(finalAgent);
+                switchView('draft');
+            }, 2000);
+        }
+    };
+    roll();
+}
+
+function executeNormalPick(agentName) {
+    const turn = NORMAL_TURN_SEQUENCE[appState.normal.turnIndex];
+    appState.normal.picks.push({ team: turn.team, agent: agentName });
+    appState.normal.turnIndex++;
+    updateNormalDraftUI();
+}
+
+function copyNormalResult() {
+    const s = appState.normal;
+    let txt = `VALORANT DRAFT RESULT\nMAP: ${s.map}\n\n`;
+    txt += `${s.team1Name}:\n` + s.picks.filter(p=>p.team===1).map(p=>p.agent).join('\n') + `\n\n`;
+    txt += `${s.team2Name}:\n` + s.picks.filter(p=>p.team===2).map(p=>p.agent).join('\n') + `\n\n`;
+    txt += `${s.team1Name} BANS:\n` + s.bans.filter(b=>b.team===1).map(b=>b.agent).join('\n') + `\n\n`;
+    txt += `${s.team2Name} BANS:\n` + s.bans.filter(b=>b.team===2).map(b=>b.agent).join('\n');
+    
+    navigator.clipboard.writeText(txt).then(() => showToast('Draft result copied!'));
+}
+
+// ============================================================================
+// PROFESSIONAL MODE ENGINE
+// ============================================================================
+function renderProSetup() {
+    appState.pro = getInitialState().pro;
+    document.getElementById('pro-team-1').value = "";
+    document.getElementById('pro-team-2').value = "";
+    setProFormat('BO1');
+    renderProMapPoolSetup();
+}
+
+function setProFormat(format) {
+    appState.pro.format = format;
+    document.querySelectorAll('#format-toggles .toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.innerText === format);
+    });
+}
+
+function renderProMapPoolSetup() {
+    const grid = document.getElementById('pro-map-grid');
+    grid.innerHTML = '';
+    ALL_MAPS.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'map-card';
+        if (appState.pro.pool.includes(m)) div.classList.add('selected');
+        div.innerText = m;
+        div.onclick = () => {
+            if (appState.pro.pool.includes(m)) {
+                appState.pro.pool = appState.pro.pool.filter(x => x !== m);
+            } else if (appState.pro.pool.length < 7) {
+                appState.pro.pool.push(m);
+            }
+            document.getElementById('map-pool-count').innerText = appState.pro.pool.length;
+            document.getElementById('start-pro-btn').disabled = appState.pro.pool.length !== 7;
+            renderProMapPoolSetup();
+        };
+        grid.appendChild(div);
+    });
+}
+
+function startProCoinToss() {
+    appState.pro.team1Name = document.getElementById('pro-team-1').value.trim() || "Team 1";
+    appState.pro.team2Name = document.getElementById('pro-team-2').value.trim() || "Team 2";
+    
+    switchView('animation');
+    const display = document.getElementById('anim-display');
+    document.getElementById('anim-title').innerText = "COIN TOSS...";
+    
+    let rollCount = 0;
+    const t1 = appState.pro.team1Name;
+    const t2 = appState.pro.team2Name;
+    
+    const roll = () => {
+        display.innerText = rollCount % 2 === 0 ? t1 : t2;
+        rollCount++;
+        if (rollCount < 20) {
+            setTimeout(roll, 150);
+        } else {
+            const winner = Math.random() > 0.5 ? 1 : 2;
+            appState.pro.coinWinner = winner;
+            display.innerText = winner === 1 ? t1 : t2;
+            display.classList.add('anim-pulse');
+            document.getElementById('anim-title').innerText = "WINNER (FIRST BAN):";
+            
+            setTimeout(() => {
+                display.classList.remove('anim-pulse');
+                startProMapDraft();
+            }, 2500);
+        }
+    };
+    roll();
+}
+
+function saveProUndoState() {
+    appState.proUndoStack.push(JSON.stringify(appState.pro));
+}
+
+function undoProAction() {
+    if (appState.proUndoStack.length > 0) {
+        appState.pro = JSON.parse(appState.proUndoStack.pop());
+        if (appState.mode === 'pro_map_draft') renderProMapDraft();
+        if (appState.mode === 'pro_agent_draft') updateProAgentDraftUI();
+    }
+}
+
+function startProMapDraft() {
+    appState.mode = 'pro_map_draft';
+    appState.pro.mapDraftStep = 0;
+    appState.pro.mapDraftLog = [];
+    appState.pro.finalMaps = [];
+    appState.proUndoStack = [];
+    switchView('pro-map-draft');
+    renderProMapDraft();
+}
+
+function renderProMapDraft() {
+    const s = appState.pro;
+    const seq = PRO_MAP_SEQUENCES[s.format];
+    const isFinished = s.mapDraftStep >= seq.length;
+    
+    document.getElementById('pro-side-selection').classList.add('hidden');
+    document.getElementById('pro-active-map-grid').classList.remove('hidden');
+    
+    if (isFinished) {
+        stopTimer();
+        document.getElementById('pro-map-action-title').innerText = "MAP DRAFT COMPLETE";
+        document.getElementById('pro-map-timer').innerText = "";
+        document.getElementById('pro-active-map-grid').classList.add('hidden');
+        document.getElementById('pro-map-summary').classList.remove('hidden');
+        
+        let summaryHTML = '';
+        s.finalMaps.forEach((fm, idx) => {
+            summaryHTML += `<div class="summary-card">
+                <div>MAP ${idx+1}</div>
+                <div class="map">${fm.name}</div>
+                ${fm.atkTeam ? `<div>${fm.atkTeam} ATK<br>${fm.defTeam} DEF</div>` : `<div>DECIDER</div>`}
+            </div>`;
+        });
+        document.getElementById('pro-summary-cards').innerHTML = summaryHTML;
+        return;
+    }
+
+    const step = seq[s.mapDraftStep];
+    let activeTeamNum = step.team === 1 ? s.coinWinner : (s.coinWinner === 1 ? 2 : 1);
+    if (step.team === 'auto' || step.team === 'random') activeTeamNum = 0;
+    
+    const activeTeamName = activeTeamNum === 1 ? s.team1Name : (activeTeamNum === 2 ? s.team2Name : "SYSTEM");
+
+    if (step.action === 'ban' || step.action === 'pick') {
+        document.getElementById('pro-map-action-title').innerText = `${activeTeamName} - ${step.action.toUpperCase()} A MAP`;
+    } else if (step.action === 'side') {
+        document.getElementById('pro-map-action-title').innerText = `${activeTeamName} - CHOOSE STARTING SIDE`;
+        document.getElementById('pro-active-map-grid').classList.add('hidden');
+        document.getElementById('pro-side-selection').classList.remove('hidden');
+    } else if (step.action === 'decider') {
+        handleProDeciderMap();
+        return;
+    }
+
+    // Render remaining maps
+    const grid = document.getElementById('pro-active-map-grid');
+    grid.innerHTML = '';
+    s.pool.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'map-card';
+        div.innerText = m;
+        
+        const isBanned = s.mapDraftLog.some(l => l.action === 'ban' && l.map === m);
+        const isPicked = s.mapDraftLog.some(l => l.action === 'pick' && l.map === m);
+        
+        if (isBanned) div.classList.add('banned');
+        if (isPicked) div.classList.add('picked');
+        
+        if (!isBanned && !isPicked && (step.action === 'ban' || step.action === 'pick')) {
+            div.onclick = () => {
+                saveProUndoState();
+                s.mapDraftLog.push({ action: step.action, map: m });
+                if (step.action === 'pick') {
+                    s.finalMaps.push({ name: m, atkTeam: null, defTeam: null, bans: [], picks: [], turnIndex: 0 });
+                }
+                s.mapDraftStep++;
+                renderProMapDraft();
+            };
+        }
+        grid.appendChild(div);
+    });
+
+    startTimer('pro-map-timer');
+}
+
+function handleProSideSelection(sideChoice) {
+    saveProUndoState();
+    const s = appState.pro;
+    const seq = PRO_MAP_SEQUENCES[s.format];
+    const step = seq[s.mapDraftStep];
+    
+    let activeTeamNum = step.team === 1 ? s.coinWinner : (s.coinWinner === 1 ? 2 : 1);
+    let selectingTeam = activeTeamNum === 1 ? s.team1Name : s.team2Name;
+    let otherTeam = activeTeamNum === 1 ? s.team2Name : s.team1Name;
+    
+    // Find latest map picked or decider
+    const latestMap = s.finalMaps[s.finalMaps.length - 1];
+    
+    if (step.team === 'random') {
+        selectingTeam = Math.random() > 0.5 ? s.team1Name : s.team2Name;
+        otherTeam = selectingTeam === s.team1Name ? s.team2Name : s.team1Name;
+        sideChoice = Math.random() > 0.5 ? 'Attack' : 'Defense';
+    }
+
+    if (sideChoice === 'Attack') {
+        latestMap.atkTeam = selectingTeam;
+        latestMap.defTeam = otherTeam;
+    } else {
+        latestMap.defTeam = selectingTeam;
+        latestMap.atkTeam = otherTeam;
+    }
+    
+    s.mapDraftStep++;
+    renderProMapDraft();
+}
+
+function handleProDeciderMap() {
+    saveProUndoState();
+    const s = appState.pro;
+    const usedMaps = s.mapDraftLog.map(l => l.map);
+    const decider = s.pool.find(m => !usedMaps.includes(m));
+    s.mapDraftLog.push({ action: 'pick', map: decider });
+    s.finalMaps.push({ name: decider, atkTeam: null, defTeam: null, bans: [], picks: [], turnIndex: 0 });
+    s.mapDraftStep++;
+    renderProMapDraft();
+}
+
+// Pro Agent Draft
+function enterProAgentDraft() {
+    appState.mode = 'pro_agent_draft';
+    appState.pro.activeMapIndex = 0;
+    switchView('draft');
+    updateProAgentDraftUI();
+}
+
+function updateProAgentDraftUI() {
+    const s = appState.pro;
+    const mapData = s.finalMaps[s.activeMapIndex];
+    const isFinished = mapData.turnIndex >= NORMAL_TURN_SEQUENCE.length;
+
+    // Render Tabs
+    const tabsContainer = document.getElementById('pro-map-tabs');
+    tabsContainer.classList.remove('hidden');
+    document.getElementById('pro-toolbar').classList.remove('hidden');
+    tabsContainer.innerHTML = '';
+    s.finalMaps.forEach((fm, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `map-tab ${idx === s.activeMapIndex ? 'active' : ''}`;
+        btn.innerText = `Map ${idx+1}: ${fm.name}`;
+        btn.onclick = () => { s.activeMapIndex = idx; updateProAgentDraftUI(); };
+        tabsContainer.appendChild(btn);
+    });
+
+    // In Pro mode, Team 1 = Attack, Team 2 = Defense for draft order logic
+    // Ranked logic: Attack (Team 1) bans first. Defense (Team 2) drafts second.
+    // If Atk/Def is not set (e.g., BO1 early decider without side yet, fallback to coin winner)
+    const leftTeam = mapData.atkTeam || s.team1Name;
+    const rightTeam = mapData.defTeam || s.team2Name;
+
+    document.getElementById('name-t1').innerText = leftTeam + " (ATK)";
+    document.getElementById('name-t2').innerText = rightTeam + " (DEF)";
+    document.getElementById('draft-map-name').innerText = mapData.name;
+    document.getElementById('roster-t1').innerHTML = "";
+    document.getElementById('roster-t2').innerHTML = "";
+    document.getElementById('role-selector').classList.add('hidden');
+    document.getElementById('agent-search-bar').classList.remove('hidden');
+    document.getElementById('final-actions').classList.add('hidden');
+
+    const mainApp = document.getElementById('app-main');
+    
+    if (isFinished) {
+        stopTimer();
+        document.getElementById('draft-phase').innerText = "DRAFT COMPLETE";
+        document.getElementById('draft-action').innerText = "";
+        document.getElementById('draft-timer').innerText = "";
+        mainApp.className = "";
+    } else {
+        const turn = NORMAL_TURN_SEQUENCE[mapData.turnIndex];
+        const activeName = turn.team === 1 ? leftTeam : rightTeam;
+        document.getElementById('draft-phase').innerText = turn.phase;
+        document.getElementById('draft-action').innerText = `${activeName} - ${turn.type.toUpperCase()}`;
+        mainApp.className = `app-active-t${turn.team}`;
+        startTimer();
+    }
+
+    renderAgentGridPro();
+    renderSidePanelsPro();
+}
+
+function filterAgents() {
+    appState.pro.searchQuery = document.getElementById('agent-search-input').value.toLowerCase();
+    appState.pro.roleFilter = document.getElementById('agent-role-filter').value;
+    if (appState.mode === 'pro_agent_draft') renderAgentGridPro();
+}
+
+function renderAgentGridPro() {
+    const grid = document.getElementById('agent-grid');
+    grid.innerHTML = '';
+    const mapData = appState.pro.finalMaps[appState.pro.activeMapIndex];
+    
+    AGENT_POOL.forEach(agent => {
+        if (appState.pro.roleFilter !== 'All' && agent.role !== appState.pro.roleFilter) return;
+        if (appState.pro.searchQuery && !agent.name.toLowerCase().includes(appState.pro.searchQuery)) return;
+
+        const div = document.createElement('div');
+        div.className = 'agent-card';
+        div.innerHTML = `<div class="name">${agent.name}</div><div class="role">${agent.role}</div>`;
+        
+        const isBanned = mapData.bans.some(b => b.agent === agent.name);
+        const isPicked = mapData.picks.some(p => p.agent === agent.name);
+        
+        if (isBanned) div.classList.add('banned');
+        if (isPicked) div.classList.add('picked');
+        
+        if (!isBanned && !isPicked && mapData.turnIndex < NORMAL_TURN_SEQUENCE.length) {
+            const turn = NORMAL_TURN_SEQUENCE[mapData.turnIndex];
+            div.onclick = () => openModal(agent.name, turn.type, () => executeProAction(agent.name, turn.type, turn.team));
+        }
+        grid.appendChild(div);
+    });
+}
+
+function renderSidePanelsPro() {
+    const mapData = appState.pro.finalMaps[appState.pro.activeMapIndex];
+    let t1PicksHTML = '', t1BansHTML = '';
+    let t2PicksHTML = '', t2BansHTML = '';
+    
+    for(let i=0; i<5; i++) {
+        const p1 = mapData.picks.filter(p => p.team === 1)[i];
+        const p2 = mapData.picks.filter(p => p.team === 2)[i];
+        t1PicksHTML += `<div class="pick-slot">${p1 ? p1.agent : ''}</div>`;
+        t2PicksHTML += `<div class="pick-slot">${p2 ? p2.agent : ''}</div>`;
+    }
+    
+    mapData.bans.filter(b=>b.team===1).forEach(b => t1BansHTML += `<div class="ban-slot">${b.agent}</div>`);
+    mapData.bans.filter(b=>b.team===2).forEach(b => t2BansHTML += `<div class="ban-slot">${b.agent}</div>`);
+    
+    document.getElementById('picks-t1').innerHTML = t1PicksHTML;
+    document.getElementById('picks-t2').innerHTML = t2PicksHTML;
+    document.getElementById('bans-t1').innerHTML = t1BansHTML;
+    document.getElementById('bans-t2').innerHTML = t2BansHTML;
+}
+
+function executeProAction(agentName, type, team) {
+    saveProUndoState();
+    closeModal();
+    const mapData = appState.pro.finalMaps[appState.pro.activeMapIndex];
+    if (type === 'ban') {
+        mapData.bans.push({ team, agent: agentName });
+    } else {
+        mapData.picks.push({ team, agent: agentName });
+    }
+    mapData.turnIndex++;
+    updateProAgentDraftUI();
+}
+
+function copyProResult() {
+    const s = appState.pro;
+    let txt = `VALORANT PROFESSIONAL SERIES RESULT\nTEAMS:\n${s.team1Name} vs ${s.team2Name}\n\n`;
+    txt += `FORMAT:\n${s.format}\n\nMAP POOL:\n${s.pool.join(', ')}\n\n`;
+    txt += `COIN TOSS WINNER:\n${s.coinWinner === 1 ? s.team1Name : s.team2Name}\n\n`;
+
+    s.finalMaps.forEach((fm, idx) => {
+        txt += `MAP ${idx+1}:\n${fm.name.toUpperCase()}\n`;
+        if (fm.atkTeam) {
+            txt += `${fm.atkTeam} ATK / ${fm.defTeam} DEF\n`;
+        } else {
+            txt += `DECIDER\n`;
+        }
+        
+        const leftTeam = fm.atkTeam || s.team1Name;
+        const rightTeam = fm.defTeam || s.team2Name;
+        
+        txt += `${leftTeam} BANS: ` + fm.bans.filter(b=>b.team===1).map(b=>b.agent).join(', ') + `\n`;
+        txt += `${rightTeam} BANS: ` + fm.bans.filter(b=>b.team===2).map(b=>b.agent).join(', ') + `\n`;
+        txt += `${leftTeam} PICKS: ` + fm.picks.filter(p=>p.team===1).map(p=>p.agent).join(', ') + `\n`;
+        txt += `${rightTeam} PICKS: ` + fm.picks.filter(p=>p.team===2).map(p=>p.agent).join(', ') + `\n\n`;
+    });
+
+    navigator.clipboard.writeText(txt.trim()).then(() => showToast('Series result copied!'));
+}
+
+// ============================================================================
+// TIMERS & MODALS
+// ============================================================================
+function startTimer(elementId = 'draft-timer') {
+    stopTimer();
+    let timeLeft = 50;
+    const el = document.getElementById(elementId);
+    el.classList.remove('expired');
+    
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+            stopTimer();
+            el.innerText = "Time Expired";
+            el.classList.add('expired');
+        } else {
+            el.innerText = `00:${timeLeft < 10 ? '0' : ''}${timeLeft}`;
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('draft-timer').innerText = "00:50";
+    document.getElementById('pro-map-timer').innerText = "00:50";
+}
+
+function openModal(agentName, actionType, confirmCallback) {
+    document.getElementById('modal-title').innerText = `Confirm ${actionType.charAt(0).toUpperCase() + actionType.slice(1)}`;
+    document.getElementById('modal-agent-name').innerText = agentName;
+    document.getElementById('modal-confirm-btn').onclick = confirmCallback;
+    document.getElementById('confirm-modal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('confirm-modal').classList.remove('active');
 }

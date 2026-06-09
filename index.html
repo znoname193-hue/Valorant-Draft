@@ -3,158 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VALORANT DRAFT SIMULATOR</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <title>Valorant Draft Simulator</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <header class="main-header">
-        <h1 id="logo-btn" class="logo">VALORANT <span>DRAFT SIMULATOR</span></h1>
-        <div id="header-match-info" class="header-match-info hidden">
-            <div class="team-vs">
-                <span class="t1-name">TEAM 1</span>
-                <span class="vs-badge">VS</span>
-                <span class="t2-name">TEAM 2</span>
-            </div>
-            <div class="current-map-display">MAP: <span id="active-map-name">-</span></div>
+    <header>
+        <div class="logo" onclick="resetApp()">
+            <span class="val-red">V</span>ALORANT DRAFT SIMULATOR
+            <span class="dev-credit">| Web developed by noname051695</span>
         </div>
+        <button class="btn-outline reset-btn" onclick="resetApp()">Reset Draft</button>
     </header>
 
-    <main class="container">
-        
-        <section id="home-screen" class="screen active">
-            <div class="welcome-box">
-                <h2>SELECT DRAFT MODE</h2>
-                <p class="welcome-subtitle">Esports tournament-grade Valorant ban/pick draft simulator</p>
-                <div class="mode-options">
-                    <div class="mode-card" id="btn-start-draft">
-                        <h3>START DRAFT</h3>
-                        <p>Directly randomize the match map and proceed to the agent ban/pick phase with default names.</p>
-                    </div>
-                    <div class="mode-card" id="btn-random-team">
-                        <h3>RANDOM TEAM DRAFT</h3>
-                        <p>Enter 10 players to automatically shuffle and split them into two random teams before drafting.</p>
-                    </div>
+    <div id="toast"></div>
+
+    <main id="app-main">
+        <section id="view-home" class="view active">
+            <div class="card-container">
+                <div class="mode-card" onclick="startSetup('start')">
+                    <h2>Start Draft</h2>
+                    <p>Standard 5v5 draft. Fixed teams. Random map and random agent rolls.</p>
+                </div>
+                <div class="mode-card" onclick="startSetup('random')">
+                    <h2>Random Team Draft</h2>
+                    <p>Input 10 players, shuffle into 5v5, then draft with random agent rolls.</p>
+                </div>
+                <div class="mode-card" onclick="startSetup('pro')">
+                    <h2>Professional Mode</h2>
+                    <p>Esports competitive format. Map pick/ban, side selections, manual agent drafting.</p>
                 </div>
             </div>
         </section>
 
-        <section id="player-input-screen" class="screen">
-            <div class="input-panel">
-                <h2>10 PLAYERS REGISTRATION</h2>
-                <p class="subtitle">Enter the names of the players participating in the lobby</p>
-                <div class="player-grid-inputs">
-                    </div>
-                <button id="btn-generate-teams" class="v-btn primary-btn">SHUFFLE & GENERATE TEAMS</button>
+        <section id="view-random-setup" class="view">
+            <h2>Enter 10 Players</h2>
+            <div class="player-inputs" id="player-inputs-container">
+                </div>
+            <button class="btn-primary mt-2" onclick="shuffleRandomTeams()">Random Team</button>
+        </section>
+
+        <section id="view-animation" class="view">
+            <div class="animation-box">
+                <h2 id="anim-title">ROLLING...</h2>
+                <div id="anim-display" class="anim-display-text"></div>
             </div>
         </section>
 
-        <section id="draft-screen" class="screen">
-            <div class="draft-layout">
-                
-                <aside class="team-panel team-1" id="team1-panel">
-                    <h2 class="team-title" id="t1-display-name">TEAM 1</h2>
-                    <div class="player-slots" id="t1-slots">
-                        </div>
-                    <div class="ban-box">
-                        <h3>TEAM 1 BANS</h3>
-                        <div class="ban-slots" id="t1-bans"></div>
-                    </div>
-                </aside>
-
-                <section class="draft-center">
-                    <div class="status-bar" id="status-message">INITIALIZING...</div>
-                    
-                    <div id="map-rolling-section" class="center-card hidden">
-                        <h3>SYSTEM SELECTING MAP</h3>
-                        <div class="map-roller" id="map-roller-box">?</div>
-                        <button id="btn-confirm-map" class="v-btn action-btn">CONFIRM MAP</button>
-                    </div>
-
-                    <div id="side-rolling-section" class="center-card hidden">
-                        <h3>DETERMINING STARTING SIDES</h3>
-                        <div class="map-roller" id="side-roller-box">?</div>
-                        <button id="btn-confirm-side" class="v-btn action-btn hidden">START BAN / PICK</button>
-                    </div>
-
-                    <div id="pick-control-section" class="center-card hidden">
-                        <p class="instruction">Select a role preference before rolling for an agent:</p>
-                        <div class="role-selector" id="role-buttons-container">
-                            <button class="role-btn active" data-role="All">ANY ROLE</button>
-                            <button class="role-btn" data-role="Duelist">DUELIST</button>
-                            <button class="role-btn" data-role="Initiator">INITIATOR</button>
-                            <button class="role-btn" data-role="Controller">CONTROLLER</button>
-                            <button class="role-btn" data-role="Sentinels">SENTINEL</button>
-                        </div>
-                        
-                        <div class="roll-zone">
-                            <div class="agent-rolling-display" id="agent-roller-box">?</div>
-                            <button id="btn-trigger-roll" class="v-btn action-btn">START AGENT ROLL</button>
-                        </div>
-                    </div>
-
-                    <div class="agent-pool-container">
-                        <h4 id="pool-title">AGENT POOL</h4>
-                        <div class="agent-grid" id="main-agent-grid"></div>
-                    </div>
-                </section>
-
-                <aside class="team-panel team-2" id="team2-panel">
-                    <h2 class="team-title" id="t2-display-name">TEAM 2</h2>
-                    <div class="player-slots" id="t2-slots">
-                        </div>
-                    <div class="ban-box">
-                        <h3>TEAM 2 BANS</h3>
-                        <div class="ban-slots" id="t2-bans"></div>
-                    </div>
-                </aside>
-
-            </div>
-        </section>
-
-        <section id="result-screen" class="screen">
-            <div class="result-box">
-                <div class="result-header">
-                    <h2>DRAFT COMPLETE</h2>
-                    <p>The match setup is ready! Copy the results below.</p>
+        <section id="view-pro-setup" class="view">
+            <div class="pro-setup-container">
+                <div class="team-names-setup">
+                    <input type="text" id="pro-team-1" placeholder="Team 1 Name (e.g., Gen.G)" maxlength="20">
+                    <span class="vs-text">VS</span>
+                    <input type="text" id="pro-team-2" placeholder="Team 2 Name (e.g., Paper Rex)" maxlength="20">
                 </div>
                 
-                <div class="result-summary">
-                    <div class="summary-map">
-                        <span>MATCH MAP</span>
-                        <h3 id="res-map-name">-</h3>
-                    </div>
-
-                    <div class="summary-teams">
-                        <div class="team-res-card t1-res">
-                            <h4 id="res-t1-title">TEAM 1</h4>
-                            <ul id="res-t1-picks"></ul>
-                            <div class="res-bans">Bans: <span id="res-t1-bans"></span></div>
-                        </div>
-                        <div class="team-res-card t2-res">
-                            <h4 id="res-t2-title">TEAM 2</h4>
-                            <ul id="res-t2-picks"></ul>
-                            <div class="res-bans">Bans: <span id="res-t2-bans"></span></div>
-                        </div>
+                <div class="format-setup">
+                    <h3>Select Format</h3>
+                    <div class="toggle-group" id="format-toggles">
+                        <button class="toggle-btn active" onclick="setProFormat('BO1')">BO1</button>
+                        <button class="toggle-btn" onclick="setProFormat('BO3')">BO3</button>
+                        <button class="toggle-btn" onclick="setProFormat('BO5')">BO5</button>
                     </div>
                 </div>
 
-                <div class="result-actions">
-                    <button id="btn-copy-result" class="v-btn action-btn">COPY DRAFT RESULT</button>
-                    <button id="btn-reset-draft" class="v-btn secondary-btn">RESET DRAFT</button>
+                <div class="map-pool-setup">
+                    <h3>Select 7 Map Pool (<span id="map-pool-count">0</span> / 7)</h3>
+                    <div class="map-grid" id="pro-map-grid"></div>
                 </div>
+
+                <button class="btn-primary mt-2" id="start-pro-btn" onclick="startProCoinToss()" disabled>Start Coin Toss</button>
             </div>
         </section>
 
+        <section id="view-pro-map-draft" class="view">
+            <div class="draft-header">
+                <h2 id="pro-map-action-title">Action Title</h2>
+                <div class="timer" id="pro-map-timer">00:50</div>
+                <button class="btn-outline" onclick="undoProAction()">Undo Last Action</button>
+            </div>
+            <div class="map-grid" id="pro-active-map-grid"></div>
+            <div class="side-selection hidden" id="pro-side-selection">
+                <button class="btn-atk" onclick="handleProSideSelection('Attack')">ATTACK</button>
+                <button class="btn-def" onclick="handleProSideSelection('Defense')">DEFENSE</button>
+            </div>
+            <div id="pro-map-summary" class="hidden">
+                <h2 class="val-red">MAP DRAFT SUMMARY</h2>
+                <div class="summary-cards" id="pro-summary-cards"></div>
+                <button class="btn-primary mt-2" onclick="enterProAgentDraft()">Start Agent Draft</button>
+            </div>
+        </section>
+
+        <section id="view-draft" class="view">
+            <div class="map-tabs hidden" id="pro-map-tabs"></div>
+            <div class="draft-toolbar hidden" id="pro-toolbar">
+                <button class="btn-outline" onclick="copyProResult()">Copy Series Result</button>
+                <button class="btn-outline" onclick="undoProAction()">Undo Last Action</button>
+            </div>
+
+            <div class="draft-layout" id="draft-layout">
+                <div class="team-panel team-1-panel" id="panel-t1">
+                    <h2 class="team-name" id="name-t1">Team 1</h2>
+                    <div class="player-list" id="roster-t1"></div>
+                    <div class="picks-container" id="picks-t1"></div>
+                    <div class="bans-container">
+                        <h3>BANS</h3>
+                        <div class="ban-list" id="bans-t1"></div>
+                    </div>
+                </div>
+
+                <div class="center-panel">
+                    <div class="draft-status">
+                        <div class="map-name" id="draft-map-name">MAP</div>
+                        <h3 id="draft-phase">Phase</h3>
+                        <h4 id="draft-action">Action</h4>
+                        <div class="timer" id="draft-timer">00:50</div>
+                    </div>
+
+                    <div class="role-selector hidden" id="role-selector">
+                        <div class="role-btns">
+                            <button class="role-btn active" onclick="selectRole('Any')">Any</button>
+                            <button class="role-btn" onclick="selectRole('Duelist')">Duelist</button>
+                            <button class="role-btn" onclick="selectRole('Initiator')">Initiator</button>
+                            <button class="role-btn" onclick="selectRole('Controller')">Controller</button>
+                            <button class="role-btn" onclick="selectRole('Sentinel')">Sentinel</button>
+                        </div>
+                        <button class="btn-primary roll-btn" onclick="startRandomRoll()">Start Random Roll</button>
+                    </div>
+
+                    <div class="search-bar hidden" id="agent-search-bar">
+                        <input type="text" id="agent-search-input" placeholder="Search Agent..." onkeyup="filterAgents()">
+                        <select id="agent-role-filter" onchange="filterAgents()">
+                            <option value="All">All Roles</option>
+                            <option value="Duelist">Duelist</option>
+                            <option value="Initiator">Initiator</option>
+                            <option value="Controller">Controller</option>
+                            <option value="Sentinel">Sentinel</option>
+                        </select>
+                    </div>
+
+                    <div class="agent-grid" id="agent-grid"></div>
+
+                    <div class="final-actions hidden" id="final-actions">
+                        <button class="btn-primary" onclick="copyNormalResult()" id="btn-copy-normal">Copy Draft Result</button>
+                    </div>
+                </div>
+
+                <div class="team-panel team-2-panel" id="panel-t2">
+                    <h2 class="team-name" id="name-t2">Team 2</h2>
+                    <div class="player-list" id="roster-t2"></div>
+                    <div class="picks-container" id="picks-t2"></div>
+                    <div class="bans-container">
+                        <h3>BANS</h3>
+                        <div class="ban-list" id="bans-t2"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
-    <footer class="global-footer">
-        <p>© 2026 VALORANT DRAFT SIMULATOR - PRO TOURNAMENT SIMULATION.</p>
-    </footer>
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal">
+            <h3 id="modal-title">Confirm</h3>
+            <p id="modal-agent-name" class="modal-agent-text">Agent</p>
+            <div class="modal-actions">
+                <button class="btn-outline" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" id="modal-confirm-btn">Confirm</button>
+            </div>
+        </div>
+    </div>
 
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
 </body>
 </html>
